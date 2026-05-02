@@ -1,0 +1,4 @@
+/src/graphene_django_realtime/__pycache__
+/.idea
+/tests/__pycache__
+/tests/testapp/__pycache__
