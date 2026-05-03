@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "graphene-django-realtime"
-version = "0.2.0a0"
+version = "0.2.1"
 description = "Reuse your graphene-django schema as the single source of truth for WebSocket payloads."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -47,8 +47,8 @@ DJANGO_SETTINGS_MODULE = "tests.settings"
 asyncio_mode = "auto"
 
 [project.urls]
-Homepage = "https://github.com/pocket-booker/graphene-django-realtime"
-Issues = "https://github.com/pocket-booker/graphene-django-realtime/issues"
+Homepage = "https://github.com/vkuzmeniuk/graphene-django-realtime"
+Issues = "https://github.com/vkuzmeniuk/graphene-django-realtime/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/graphene_django_realtime"]
