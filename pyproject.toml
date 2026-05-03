@@ -4,12 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "graphene-django-realtime"
-version = "0.2.2"
+version = "0.2.2a0"
 description = "Reuse your graphene-django schema as the single source of truth for WebSocket payloads."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
-authors = [{ name = "Pocket Booker contributors" }]
+authors = [{ name = "VKuzmeniuk" }]
 keywords = ["graphene", "django", "graphql", "websocket", "channels", "realtime", "subscriptions"]
 classifiers = [
     "Development Status :: 3 - Alpha",
