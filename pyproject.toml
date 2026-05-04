@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "graphene-django-realtime"
-version = "0.2.2a1"
+version = "0.2.2a2"
 description = "Reuse your graphene-django schema as the single source of truth for WebSocket payloads."
 readme = "README.md"
 license = { file = "LICENSE" }

@@ -180,11 +180,6 @@ async def test_subscribe_execution_errors_send_error_frame():
                 "variables": {"id": "all"},
             },
         })
-        # First frame is the echo-back of the subscribe message
-        first = await comm.receive_json_from()
-        assert first["type"] == "subscribe"
-
-        # Second frame is the error
         error_frame = await comm.receive_json_from()
         assert error_frame["type"] == "error"
         assert error_frame["id"] == "sub_1"
@@ -227,6 +222,52 @@ async def test_subscribe_no_duplicate_error_on_execution_result_errors():
     assert len(error_frames) == 1, f"Expected exactly 1 error frame, got: {error_frames}"
 
     await comm.disconnect()
+
+
+# ---------------------------------------------------------------------------
+# dispatch() — soft-fail on unknown channel-layer event types
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_dispatch_drops_unknown_event_type_without_killing_socket(caplog):
+    """A misconfigured channel_layer.send with an unknown ``type`` must not
+    raise ValueError — that would close the socket with 1011 and disrupt
+    every other subscription on it."""
+    consumer = _TestConsumer()
+    consumer.send_json = AsyncMock()
+
+    with caplog.at_level("WARNING", logger="graphene_django_realtime.consumer"):
+        await consumer.dispatch({"type": "categories_update", "payload": {"x": 1}})
+
+    consumer.send_json.assert_not_called()
+    assert any("categories_update" in r.message for r in caplog.records)
+    assert any("graphql_event" in r.message for r in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_dispatch_routes_known_event_to_handler():
+    consumer = _TestConsumer()
+    consumer.send_json = AsyncMock()
+
+    await consumer.dispatch({
+        "type": "graphql_event",
+        "op_id": "op_1",
+        "graphql_field": "productUpdated",
+        "payload": {"id": "Rm9v"},
+    })
+
+    consumer.send_json.assert_awaited_once()
+    msg = consumer.send_json.await_args.args[0]
+    assert msg["type"] == "next"
+    assert msg["id"] == "op_1"
+
+
+@pytest.mark.asyncio
+async def test_dispatch_propagates_non_handler_value_errors():
+    consumer = _TestConsumer()
+    with pytest.raises(ValueError):
+        await consumer.dispatch({})  # missing 'type' raises in get_handler_name
 
 
 # ---------------------------------------------------------------------------

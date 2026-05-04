@@ -3,16 +3,25 @@ Channels consumer that speaks ``graphql-transport-ws`` and persists
 subscription metadata into a :class:`AsyncRedisSubscriptionRegistry` so that
 signal-time broadcasters can find subscribers.
 
-Subclass :class:`GraphQLWebsocketConsumer` and add per-event handlers whose
-names match the channel-layer ``event["type"]`` you broadcast::
+Recommended path — emit channel-layer events with ``type="graphql_event"``
+(the ``broadcast_*`` helpers in :mod:`graphene_django_realtime.broadcast`
+already do this).  The built-in :meth:`GraphQLWebsocketConsumer.graphql_event`
+handler unwraps them into ``next`` messages on the WebSocket; no subclass
+code is required.
+
+Custom event types — a subclass may also define handlers matching the
+channel-layer ``event["type"]`` it sends itself::
 
     class MyConsumer(GraphQLWebsocketConsumer):
-        async def my_update(self, event):
+        async def my_update(self, event):  # raised by send(..., {"type": "my_update", ...})
             await self.send_json({
                 "type": "next",
                 "id": event["op_id"],
                 "payload": {"data": {"myField": event["payload"]}},
             })
+
+Channel-layer events whose ``type`` matches no handler are logged and
+dropped — the WebSocket and other subscriptions on it stay alive.
 """
 
 from __future__ import annotations
@@ -73,6 +82,40 @@ class GraphQLWebsocketConsumer(AsyncJsonWebsocketConsumer):
                 redis_url=self.redis_url, ttl=self.subscription_ttl
             )
         return self._registry
+
+    # ---- dispatch ------------------------------------------------------------
+
+    async def dispatch(self, message: Dict[str, Any]) -> None:
+        """Soft-fail on channel-layer events with no matching handler.
+
+        Channels' default :meth:`dispatch` raises ``ValueError`` when no
+        method matches ``message["type"]``, which propagates up and closes
+        the WebSocket with code 1011 — killing every other subscription on
+        the same socket.  Backend code that calls ``channel_layer.send`` /
+        ``group_send`` with a custom ``type`` (e.g. ``"categories_update"``)
+        without a corresponding handler is the most common cause.
+
+        We catch that one specific ValueError and log a hint pointing at the
+        ``broadcast_*`` helpers (which emit ``type="graphql_event"``).  All
+        other errors — including malformed messages or missing ``websocket.*``
+        protocol handlers — are re-raised.
+        """
+        try:
+            await super().dispatch(message)
+        except ValueError as exc:
+            if not str(exc).startswith("No handler for message type "):
+                raise
+            msg_type = message.get("type", "")
+            if not isinstance(msg_type, str) or msg_type.startswith("websocket."):
+                raise
+            handler_name = msg_type.replace(".", "_")
+            logger.warning(
+                "GraphQLWebsocketConsumer: dropping channel-layer event with "
+                "unknown type %r. Use broadcast_instance / broadcast_instance_grouped "
+                "(which emit type='graphql_event'), or define `async def %s(self, event)` "
+                "on your consumer subclass. Connection kept alive.",
+                msg_type, handler_name,
+            )
 
     # ---- generic channel-layer event forward --------------------------------
 

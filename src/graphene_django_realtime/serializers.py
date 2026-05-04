@@ -518,10 +518,16 @@ def serialize_for_broadcast(
             context={'start_date': '2024-01-01', 'end_date': '2024-12-31'}
         )
 
+        # Push directly to a single socket via the consumer's built-in
+        # ``graphql_event`` handler.  ``type`` MUST be ``"graphql_event"`` —
+        # any other value will fail to dispatch on the consumer.  In most
+        # cases prefer ``broadcast_instance`` / ``broadcast_instance_grouped``
+        # which handle serialization and fan-out for you.
         async_to_sync(channel_layer.send)(sock_key, {
-            "type": "categories_update",
-            "category": payload,
-            "op_id": op_id
+            "type": "graphql_event",
+            "graphql_field": "categoriesByBudget",
+            "op_id": op_id,
+            "payload": payload,
         })
     """
     _ensure_discovery()
