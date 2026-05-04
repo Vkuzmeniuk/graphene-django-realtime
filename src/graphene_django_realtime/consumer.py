@@ -237,8 +237,6 @@ class GraphQLWebsocketConsumer(AsyncJsonWebsocketConsumer):
             except Exception as exc:
                 logger.warning(f"Failed to register subscription in registry: {exc}")
 
-        await self.send_json({"type": "subscribe", "id": op_id, "payload": {"query": query}})
-
         try:
             result = await subscribe(
                 schema,
